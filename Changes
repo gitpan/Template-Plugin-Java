@@ -1,6 +1,15 @@
 Revision history for Perl extension Template::Plugin::Java.
 
-0.01  Mon Jul 17 13:05:15 2000
+0.01  Mon Jul 17 13:05:15 PDT 2000
 	- original version; created by h2xs 1.20 with options
 		-A -X -n Template::Plugin::Java
 
+0.1   Thu Jul 27
+	- First CPAN release.
+
+0.2   Mon Jul 31 09:26:55 PDT 2000
+	- The sql stuff now at least compiles and works for select queries.
+	- Constructor for java.sql.Date called with (0) since the type has no
+	  () constructor. This is a general problem that must be solved later
+	  on using class file introspection.
+	- Very minor documentation update.

@@ -23,16 +23,15 @@ Via a template such as:
 	[% USE Java %]
 	[% Use JavaSQL %]
 	...
-		mySelect	= myConnection.prepareStatement("
-	select [% JavaSQL.columnNames.join(", ") %]
-	from [% JavaSQL.tables.join(", ") %]
-	[% IF JavaSQL.where %]
-	where [% JavaSQL.where %]
+	mySelect	= myConnection.prepareStatement(
+	"select [% JavaSQL.columnNames.join(", ") %] from [% JavaSQL.tables.join(", ") %]
+	[%- IF JavaSQL.where -%]
+	 where [% JavaSQL.where %] 
 	[% END %]
-	[% IF JavaSQL.order %]
+	[%- IF JavaSQL.order -%]
 	order by [% JavaSQL.order %]
-	[% END %]
-	");
+	[% END %]"
+	);
 
 =head1 DESCRIPTION
 
@@ -121,12 +120,12 @@ sub new {
 				@{ $sth->{TYPE} };
 	
 	$self->{sth}     = $sth;
-	$self->{columns} = $columns;
+	$self->{columns} = [sort @$columns];
 	$self->parseQuery($query);
 
 	$result = parseOptions($result);
 
-	@{$self->{column2var}}{ @$columns } = keys %$result;
+	@{$self->{column2var}}{ sort @$columns } = sort keys %$result;
 
 # Place the variable info from the table back into main variables hash.
 	@$vars{ keys %$result } = values %$result;
@@ -156,6 +155,13 @@ A list of tables used by the query.
 =cut
 sub tables  { $_[0]->{tables}  }
 
+=item B<tableCount>
+
+Number of tables used by query.
+
+=cut
+sub tableCount { scalar @{$_[0]->{tables}} }
+
 =item B<order>
 
 An ORDER BY clause, if one was used.
@@ -170,6 +176,13 @@ A list of column names used in the query.
 =cut
 sub columnNames { $_[0]->{columns} }
 
+=item B<columnCount>
+
+Number of columns returned from query.
+
+=cut
+sub columnCount { scalar @{$_[0]->{columns}} }
+
 =item B<columns>
 
 Intended to be used as [% FOREACH JavaSQL.columns %] ...
@@ -180,7 +193,7 @@ sub columns {
 	my $self    = shift;
 	my $vars    = $self->{context}->stash->get('variables');
 
-	my $position= 0;
+	my $position= 1;
 
 	return [ map {
 		my $key  = $_;
@@ -192,6 +205,7 @@ sub columns {
 			varName => $var,
 			capName	=> ucfirst $var,
 			type	=> $type,
+			capType	=> ucfirst $type,
 			value   => $vars->{$var},
 			initializer =>
 				Template::Plugin::Java->initializer($type),
@@ -244,6 +258,8 @@ Password for database, can be blank for no password.
 =head1 AUTHOR
 
 Rafael Kitover (caelum@debian.org)
+The concept and related templates are based on Andrew Lanthier's dbgen
+framework (an unreleased development utility).
 
 =head1 COPYRIGHT
 

@@ -6,7 +6,7 @@ WriteMakefile(
 	ABSTRACT	=> 'Generate Java Classes from XML description files and templates.',
 	EXE_FILES	=> [ qw( bin/tjava ) ],
 	AUTHOR		=> 'Rafael Kitover (caelum@debian.org)',
-	PREREQ_PM	=> {Template => 0},
+	PREREQ_PM	=> {Template => 0, XML::Simple => 0},
 	dist		=> {
 		COMPRESS => 'gzip',
 		SUFFIX   => 'gz'

@@ -1,6 +1,6 @@
 package Template::Plugin::Java;
 
-($VERSION) = '$ProjectVersion: 0.1 $' =~ /\$ProjectVersion:\s+(\S+)/;
+($VERSION) = '$ProjectVersion: 0.2 $' =~ /\$ProjectVersion:\s+(\S+)/;
 
 =head1 NAME
 
@@ -39,7 +39,9 @@ Via a template, such as:
 	//... etc
 	}
 
-To generated Java source code in the appropriate directory.
+To generated Java source code in the appropriate directory as determined by the
+package of the .xml file's directory, specified package option if any, and
+CLASSPATH.
 
 =head1 OPTIONS
 
@@ -104,7 +106,15 @@ Text to insert in the generated class body.
 Will insert text read from the file specified into the generated class body.
 This option and the B<--append> option are mutually exclusive.
 
-A bunch more that need to be documented.
+=item B<--file[s]>
+
+The XML file(s) to parse. This is useful for when the Plugin is instantiated
+from a custom script, not via tjava or inside a template.
+
+Any other option will be placed into the stash for the templates to use, making
+tjava very useful with your custom templates.
+
+Anything that's not an option will be assumed to be a file.
 
 =back
 
@@ -289,6 +299,9 @@ sub initializer {
 
 	return $self->encapsulatePrimitive($type).".MIN_VALUE"
 			if $self->scalar($type);
+	
+	return "new java.sql.Date(0)"
+			if $type eq 'java.sql.Date';
 
 	return "new $type()";
 }
@@ -679,6 +692,7 @@ The B<--templatePath> option should actually work.
 =head1 TODO
 
 A very great deal.
+Including more documentation.
 
 =head1 SEE ALSO
 
