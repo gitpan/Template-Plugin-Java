@@ -17,6 +17,7 @@ Template::Plugin::Java::Utils - Utility functions for Template::Plugin::Java.
 @EXPORT_OK = qw(
 	parseOptions sqlType2JavaType simplifyPath findPackageDir isNum
 	castJavaString determinePackage createTemplate parseCmdLine
+	javaTypeName
 );
 
 use strict;
@@ -70,7 +71,7 @@ sub parseOptions {
 
 	if (@_ > 1) {
 		%options = @_;
-	} elsif (UNIVERSAL::isa($_[0], 'HASH')) {
+	} elsif (defined $_[0] and UNIVERSAL::isa($_[0], 'HASH')) {
 		%options = %{+shift};
 	}
 
@@ -152,7 +153,8 @@ sub parseCmdLine () {
 
 =item B<sqlType2JavaType( type_name [, precision for numeric types] )>
 
-Maps some ANSI SQL data types to the closest Java variable types.
+Maps some ANSI SQL data types to the closest Java variable types. The default
+case is byte[] for unrecognized sql types.
 
 =cut
 sub sqlType2JavaType ($;$) {
@@ -170,9 +172,8 @@ sub sqlType2JavaType ($;$) {
 	};
 
 	/^date$/i	&& return 'Date';
-	/^.*binary$/i	&& return 'byte[]';
 
-	croak "Cannot map SQL type $_ to Java type.";
+	return 'byte[]';
 }
 
 =item B<simplifyPath( path )>
@@ -259,7 +260,13 @@ if (not $@ && DBI->can('looks_like_number')) {
 		}
 	}
 }
-sub isNum ($) { &$isNum_body(shift) }
+
+# Install the sub reference as the sub.
+{
+	no strict 'refs';
+
+	*{__PACKAGE__.'::isNum'} = $isNum_body;
+}
 
 =item B<castJavaString( variable_name, target_type )>
 
@@ -282,6 +289,19 @@ sub castJavaString {
 		};
 		die "Cannot cast $name from String to $type.";
 	}
+}
+
+=item B<javaTypeName( javaType )>
+
+Transform a java type name to a character string version. In other words,
+String remains String, but byte[] becomes byteArray.
+
+=cut
+sub javaTypeName ($) {
+	local $_ = pop;
+	s/\[\]/Array/g;
+
+	return $_;
 }
 
 1;

@@ -62,15 +62,14 @@ use Template::Plugin::Java::Utils qw/parseOptions sqlType2JavaType/;
 
 use constant QUERY => qr/
 	from
-	\s*(.*)\s*	# $1 = tables
+	\s*(.*?)\s*	# $1 = tables
 	(?:where
-	 	\s*(.*)\s*	# $2 = condition
+	 	\s*(.*?)\s*	# $2 = condition
 		(?:order\s*by
 		\s*(.*)\s*$	# $3 = order by clause
-		|
-		\s*$)
-	|
-	\s*$)
+		)?
+	)?
+	\s*$
 /xi;
 
 my $dbh = DBI->connect_cached (

@@ -1,6 +1,6 @@
 package Template::Plugin::Java;
 
-($VERSION) = '$ProjectVersion: 0.3 $' =~ /\$ProjectVersion:\s+(\S+)/;
+($VERSION) = '$ProjectVersion: 0.4 $' =~ /\$ProjectVersion:\s+(\S+)/;
 
 =head1 NAME
 
@@ -55,8 +55,8 @@ the command line.
 
 =item B<--template>
 
-Name of the template to process. If the name has no extension, a ".template"
-extension is assumed.
+Name of the template to process. No extension is assumed by default unlike in
+the previous version.
 
 =item B<--package>
 
@@ -80,7 +80,7 @@ not useful.
 
 =item B<--containerTemplate>
 
-By default set to F<Container.template>, this is the default template, as well
+By default set to F<Container>, this is the default template, as well
 as the template used for sub-containers.
 
 =item B<--containerNamePrefix>
@@ -136,12 +136,14 @@ I'll write more eventually, for now see the examples in the distribution.
 
 =cut
 
+require Template::Plugin;
+@ISA = 'Template::Plugin';
+
 use strict;
-use base qw(Template::Plugin);
 use Carp qw/verbose croak/;
 use Template::Plugin::Java::Utils qw(
 	parseOptions findPackageDir isNum determinePackage createTemplate
-	parseCmdLine
+	parseCmdLine javaTypeName
 );
 use Template::Plugin::Java::Constants qw/:all/;
 
@@ -210,15 +212,40 @@ sub new {
 		}
 	}
 
+# The ! eof STDIN is necessary here, because sub-templates will want to create
+# new instances of this Plugin, when the process still has a redirected STDIN,
+# just with no data to read. Using eof on a terminal is bad, but this doesn't
+# happen because of the && short circuit.
+	if (scalar @files == 0 && ! -t STDIN && ! eof STDIN) {
+		push @files, '-';
+	}
+
 	for my $file_name (@files) {
+		my $stash;
+
+		if ($file_name ne '-') {
 # Prepend ./ if relative path.
-		$file_name =~ s!^([^/-])!./$1!;
-		my $stash  = XMLin (
-			$file_name,
-			keyattr => "",
-			keeproot => 1,
-			cache => 'storable'
-		);
+			$file_name =~ s!^([^/-])!./$1!;
+			$stash  = XMLin (
+				$file_name,
+				keyattr => "",
+				keeproot => 1,
+				cache => 'storable'
+			);
+		} else {
+# Reading from STDIN.
+			my $data;
+			{
+				local @ARGV = '-';
+				$data = join '', <>;
+			}
+			$stash = XMLin (
+				$data,
+				keyattr => "",
+				keeproot => 1,
+			);
+		}
+
 		my $root   = (keys %$stash)[0];
 		$stash     = {%{$stash->{$root}}};
 
@@ -236,13 +263,21 @@ sub new {
 
 		$stash->{tag}		= $root;
 		$stash->{class}		||= ucfirst $root;
-		$stash->{package}	||= determinePackage dirname($file_name);
-		$stash->{genContainers} ||= TRUE;
-		$stash->{containerTemplate} ||= 'Container.template';
-		$stash->{template}	||= $stash->{containerTemplate};
 
-		$stash->{template}	.= ".template"
-			if $stash->{template} !~ /\./;
+# Allow nopackage="true" to create a class that isn't in a package.
+		{
+# Turn off warnings about comparing uninitialized values.
+			local $^W = undef;
+
+			if (!$stash->{package} && $stash->{package} ne '0') {
+				$stash->{package} =
+					determinePackage dirname($file_name);
+			}
+		}
+
+		$stash->{genContainers} ||= TRUE;
+		$stash->{containerTemplate} ||= 'Container';
+		$stash->{template}	||= $stash->{containerTemplate};
 
 		$stash->{containerNamePrefix} = $stash->{class}
 			if not exists $stash->{containerNamePrefix};
@@ -306,9 +341,11 @@ sub initializer {
 
 	return $self->encapsulatePrimitive($type).".MIN_VALUE"
 			if $self->scalar($type);
+
+        return "new $type(0)"
+                        if $type eq 'java.sql.Date' || $type eq 'Date';
 	
-	return "new java.sql.Date(0)"
-			if $type eq 'java.sql.Date';
+	return undef	if $type =~ /\[\]$/;
 
 	return "new $type()";
 }
@@ -335,9 +372,37 @@ sub variables {
 			name	=> $key,
 			capName	=> ucfirst $key,
 			type	=> $type,
+			typeName=> javaTypeName $type,
 			value	=> $vars->{$key},
 			initializer => $self->initializer($type)
 		};
+	} (sort keys %$vars) ];
+}
+
+=item B<variableDeclarations($options_hashref)>
+
+Returns a list of <type> <name> strings such as:
+	String foo
+	int bar
+	...
+
+These can be used in a template in this way:
+	function ([% Java.variableDeclarations.join(", ") %]) {
+	...
+	}
+
+=cut
+sub variableDeclarations {
+	my ($self, $options) = @_;
+
+	my $vars = $self->getVariables (
+		$self->context->stash->get('variables'),
+		$options
+	);
+	
+	return [ map {
+		my $key = $_;
+		$self->mapType($key, $vars->{$key}).' '.$key;
 	} (sort keys %$vars) ];
 }
 
@@ -387,7 +452,9 @@ sub getVariables {
 		for my $n (@names) {
                         if (!$self->scalar($self->mapType($n, $vars->{$n}))
                             and
-                            !$self->array($self->mapType($n, $vars->{$n}))) {
+			    !$self->array($self->mapType($n, $vars->{$n}))
+			    and
+			    $self->mapType($n, $vars->{$n}) !~ /\[\]/) {
 				$vars{$n} = $vars->{$n};
 			}
                 }
@@ -627,7 +694,7 @@ sub genClass {
 		my $handle = new IO::File "> $v->{destFile}"
 			or croak "Could not write to $v->{destFile}: $!";
 
-		$handle->write($context->process($v->{template}));
+		print $handle $context->process($v->{template});
 		$handle->close;
 	}
 
@@ -700,6 +767,8 @@ The B<--templatePath> option should actually work.
 
 A very great deal.
 Including more documentation.
+DBClass doesn't work in tt 1.x.
+Non-sense options in java: contexts should be somehow handled?
 
 =head1 SEE ALSO
 

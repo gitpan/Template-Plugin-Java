@@ -62,6 +62,8 @@ require Exporter;
 use strict;
 use vars qw(@EXPORT_OK %EXPORT_TAGS);
 
+use constant INSTALL_PREFIX => '@@INSTALL_PREFIX@@';
+
 my @boolean = qw(TRUE FALSE);
 use constant TRUE   => 1;
 use constant FALSE  => 0;
@@ -77,7 +79,7 @@ use constant STRING => qr{^((?:java\.lang\.)?String)$};
 
 use constant ARRAY  => qr{^((?:java\.util\.)?Vector)$};
 
-@EXPORT_OK   = (@boolean, @regex);
+@EXPORT_OK   = (@boolean, @regex, 'INSTALL_PREFIX');
 %EXPORT_TAGS = (
 	'all'	=> [ @EXPORT_OK ],
 	'boolean'=>[ @boolean   ],

@@ -1,26 +1,9 @@
 // Generated database class.
+[%# vim: set syntax=java: %]
 [% USE Java %]
 [% USE JavaSQL %]
-
-package $package;
-
-import java.sql.*;
-import java.util.Vector;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import nebula.xml.XmlElement;
-
-public class	$class
-[% IF parent %]
-extends		$parent
-[% END %]
-[% IF interface.size %]
-implements	[% FOREACH i = interface %]
-		,$i
-		[% END %]
-[% END %]
+[% PROCESS FileHeader %]
+[% PROCESS ClassHeader %]
 {
 Connection myConnection;
 ResultSet myResults;
@@ -32,7 +15,7 @@ PreparedStatement myUpdate;
 PreparedStatement myDelete;
 [% END %]
 
-[% INCLUDE DataDeclarations.template %]
+[% PROCESS DataDeclarations %]
 [% FOREACH JavaSQL.columns %]
 boolean ${varName}Set = false;
 [% END %]
@@ -55,7 +38,16 @@ throws SQLException
 	init(connection);
 }
 
-void init(Connection connection)
+public $class(InputSource from) throws Exception { set(from); }
+
+public $class(Connection connection, InputSource from)
+throws Exception
+{
+	init(connection);
+	set(from);
+}
+
+public void init(Connection connection)
 throws SQLException
 {
 	myConnection = connection;
@@ -139,6 +131,9 @@ throws SQLException
 	}
 	int parameter_index = 1;
 [% FOREACH JavaSQL.columns %]
+	[% IF capType == "Byte[]" %]
+	[% 	capType = "Bytes" %]
+	[% END %]
 	if (${varName}Set) { stmt.set$capType(parameter_index++, $varName); }
 [% END %]
 	myResults = stmt.executeQuery();
@@ -154,7 +149,11 @@ throws SQLException
 		return false;
 	}
 [% FOREACH JavaSQL.columns %]
+	[% IF capType == "Byte[]" %]
+	[% 	capType = "Bytes" %]
+	[% END %]
 	$varName	= myResults.get$capType($position);
+
 [% END %]
 	return true;
 }
@@ -169,11 +168,17 @@ throws SQLException
 		stmt = myUpdate;
 	}
 [% FOREACH JavaSQL.columns %]
+	[% IF capType == "Byte[]" %]
+	[% 	capType = "Bytes" %]
+	[% END %]
 	stmt.set$capType($position, $varName);
 [% END %]
 
 	if (myResults != null) {
 [% FOREACH JavaSQL.columns %]
+	[% IF capType == "Byte[]" %]
+	[% 	capType = "Bytes" %]
+	[% END %]
 		stmt.set$capType([% JavaSQL.columnCount + position %], myResults.get$capType($position));
 [% END %]
 	}
@@ -185,6 +190,9 @@ public void remove()
 throws SQLException
 {
 [% FOREACH JavaSQL.columns %]
+	[% IF capType == "Byte[]" %]
+	[% 	capType = "Bytes" %]
+	[% END %]
 	myDelete.set$capType($position, $varName);
 [% END %]
 	myDelete.executeUpdate();
@@ -194,16 +202,13 @@ public void reset()
 throws SQLException
 {
 [% FOREACH JavaSQL.columns %]
-	$varName	= $initializer;
+	$varName	= [% initializer || "null" %];
 	${varName}Set	= false;
 [% END %]
 	myResults = null;
 }
 
-[% INCLUDE XMLEncode.template  %]
-
-[% INCLUDE AddElement.template %]
-
+[% PROCESS XMLEncode  %]
+[% PROCESS ParseFromXML %]
 $append
-
 } // End class ${class}.
