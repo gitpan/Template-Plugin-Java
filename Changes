@@ -1,0 +1,6 @@
+Revision history for Perl extension Template::Plugin::Java.
+
+0.01  Mon Jul 17 13:05:15 2000
+	- original version; created by h2xs 1.20 with options
+		-A -X -n Template::Plugin::Java
+

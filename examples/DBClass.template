@@ -1,0 +1,222 @@
+// Generated database class.
+[% USE Java %]
+[% USE JavaSQL %]
+
+package $package;
+
+import java.sql.*;
+
+public class	$class
+[% IF parent %]
+extends		$parent
+[% END %]
+implements	nebula.gen.DBObject,
+		nebula.gen.DBReader,
+		nebula.gen.DBWriter
+		[% FOREACH i = interface %]
+		,$i
+		[% END %]
+{
+Connection		myConnection;
+
+PreparedStatement	mySelect;
+PreparedStatement	myInsert;
+PreparedStatement	myDelete;
+PreparedStatement	myUpdate;
+
+ResultSet		myResults;
+
+[% IF versionedRows %]
+int			myRowVersion = 0;
+[% END %]
+boolean			amNew = false;
+
+[% INCLUDE DataDeclarations.template %]
+
+public $class (Connection connection
+[%- FOREACH JavaSQL.columns -%]
+, $type $varName
+[% END %])
+{
+	myConnection	= connection;
+[% FOREACH JavaSQL.columns %]
+	this.$varName	= $varName;
+[% END %]
+	amNew = true;
+	prepareStatements();
+	find();
+}
+
+public $class(Connection connection)
+{
+	myConnection = connection;
+	amNew = true;
+	prepareStatements();
+}
+
+void prepareStatements() {
+	mySelect	= myConnection.prepareStatement("
+select [% JavaSQL.columnNames.join(", ") %]
+from [% JavaSQL.tables.join(", ") %]
+[% IF JavaSQL.where %]
+where [% JavaSQL.where %]
+[% END %]
+[% IF JavaSQL.order %]
+order by [% JavaSQL.order %]
+[% END %]
+");
+
+[% IF variables.maxRows %]
+// Use default from xml spec.
+	maxRows = variables.maxRows;
+[% END %]
+
+	myInsert	= myConnection.prepareStatement("
+insert into [% JavaSQL.tables.first %]
+( [% JavaSQL.columnNames.join(", ") %] )
+values ( 
+[%- PERL -%]
+# Make a string with the right number of ?, ?, ?, ... ?
+substr ('?, ' x [% JavaSQL.columnNames.size %], 0, -2)
+[% END %])
+");
+
+	myUpdate = myConnection.prepareStatement("
+update [% JavaSQL.tables.first %]
+set $PARAMETERIZEDCOLUMNLIST
+where $PARAMETERIZEDWHERELIST
+[% IF versionedRows %]
+and version = ? 
+[% END %]
+");
+
+	myDelete = myConnection.prepareStatement("
+delete from [% JavaSQL.tables.first %]
+where $PARAMETERIZEDWHERELIST
+");
+}
+
+[% INCLUDE DataAccess.template %]
+
+void find()
+throws SQLException;
+{
+[% IF variables.maxRows %]
+	// set this prior to all queries.
+	mySelect.setMaxRows(maxRows);
+[% END %]
+
+	// only set on paramaterized queries
+	// TODO: set parameterized queries
+
+	myResults = mySelect.executeQuery();
+	// load the first row in the set.
+	if (myResults != null) next();
+}
+
+void next()
+throws SQLException
+{
+	reset();
+	if (!myResults.next()) return;
+[% FOREACH JavaSQL.columns %]
+	$varName = myResults.get$type($position);
+[% END %]
+	amNew = false;
+
+[% IF versionedRows %]
+	// get the current row version
+	myRowVersion = getVersion();
+[% END %]
+}
+
+void store()
+throws SQLException
+{
+	int rc = 0;
+
+	// is this an update or insert
+	PreparedStatement stmt = null;
+
+	if (amNew) {
+		stmt = myInsert;
+	} else {
+		stmt = myUpdate;
+	}
+
+	if (amNew) {
+[% FOREACH Java.variables %]
+		$JDBCNULLCHECK /
+		stmt.set$JDBCPRETTYCOLUMNTYPE / ($COLUMNPOS / , $name);
+[% END %]
+	} else {
+[% FOREACH Java.variables %]
+		$JDBCNULLCHECK /
+		stmt.set$JDBCPRETTYCOLUMNTYPE / ($COLUMNPOS / , $name);
+[% END %]
+		//modified
+[% FOREACH Java.variables %]
+		stmt.set$JDBCPRETTYCOLUMNTYPE / ($COLUMNPOS / + $COLUMNCOUNT / , $name);
+[% END %]
+
+[% IF versionedRows %]
+		stmt.setInt($COLUMNCOUNT / + $PKCOLUMNCOUNT / + 1, myRowVersion);
+[% END %]
+	}
+
+	rc = stmt.executeUpdate();
+
+[% IF versionedRows %]
+	// on an insert set the internal version to the inserted value
+	if (amNew)
+		myRowVersion = getVersion();
+	else {
+		// for a successful update update the internal row version.
+		// if no rows were affected than set this as a CONCURRENCY ERROR
+		if (rc > 0)
+			myRowVersion = getVersion();
+		else {
+			throw new SQLException(
+				"NO ROWS AFFECTED BY UPDATE",
+				"CONCURRENCY ERROR",
+				101
+			);
+		}
+	}
+[% END %]
+
+	amNew = false;
+}
+
+void remove()
+throws SQLException
+{
+	if (myDelete == null) {
+		dbPrepareDeleteStmt();
+	}
+
+[% FOREACH Java.variables %]
+	myDelete.set$JDBCPRETTYCOLUMNTYPE / ($COLUMNPOS / , $name);
+	myDelete.executeUpdate();
+[% END %]
+	reset();
+}
+
+
+public void reset()
+{
+[% FOREACH JavaSQL.columns %]
+	$varName = $initializer;
+[% END %]
+[% IF versionedRows %]
+	myRowVersion = 0;
+[% END %]
+	amNew = true;
+}
+
+[% INCLUDE XMLEncode.template  %]
+[% INCLUDE AddElement.template %]
+
+$append
+
+} // End class ${class}.

@@ -1,0 +1,22 @@
+public void addElement(String name, String value) {
+[% FOREACH Java.variables({type => 'Scalar'}) %]
+	if (name.equals("$name")) { set$capName(
+	[% Java.castJavaString("value", type) %]); return; }
+[% END %]
+[% FOREACH Java.variables({type => 'ScalarArray'}) %]
+[%	array_type = Java.arrayType(name, value) %]
+	if (name.equals("$name"))
+		{ get$capName().addElement([% Java.castJavaString("value", array_type) %]); return; }
+[% END %]
+}
+
+public void addElement(String name, XmlElement value) {
+[% FOREACH Java.variables({type => 'Composite'}) %]
+	if (name.equals("$name")) { set$capName(($type)value); return; }
+[% END %]
+[% FOREACH Java.variables({type => 'CompositeArray'}) %]
+[%	array_type = Java.arrayType(name, value) %]
+	if (name.equals("$name"))
+		{ get$capName().addElement(($array_type)value); return; }
+[% END %]
+}
