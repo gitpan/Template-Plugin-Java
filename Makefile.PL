@@ -8,7 +8,7 @@ WriteMakefile(
 	AUTHOR		=> 'Rafael Kitover (caelum@debian.org)',
 	PREREQ_PM	=> {Template => 0, XML::Simple => 0},
 	dist		=> {
-		COMPRESS => 'gzip',
+		COMPRESS => 'gzip -9f',
 		SUFFIX   => 'gz'
 	}
 );

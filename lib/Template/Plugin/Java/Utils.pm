@@ -1,5 +1,19 @@
 package Template::Plugin::Java::Utils;
 
+=head1 NAME
+
+Template::Plugin::Java::Utils - Utility functions for Template::Plugin::Java.
+
+=head1 SYNOPSIS
+
+	use Template::Plugin::Java::Utils qw/list of subroutines to import/;
+
+=head1 SUBROUTINES
+
+=over 8
+
+=cut
+
 @EXPORT_OK = qw(
 	parseOptions sqlType2JavaType simplifyPath findPackageDir isNum
 	castJavaString determinePackage createTemplate parseCmdLine
@@ -10,7 +24,11 @@ use base qw(Exporter);
 use Carp;
 use Template::Plugin::Java::Constants qw/:all/;
 
-# Creates a new Template with reasonable options.
+=item B<createTemplate>
+
+Creates a new Template with reasonable options.
+
+=cut
 sub createTemplate {
 	use Template;
 	use Template::Constants qw/:status/;
@@ -41,9 +59,12 @@ sub createTemplate {
 	return $template;
 }
 
+=item B<parseOptions>
 
-# Replaces c_c with cC and nosomething=whatever with something=0 in the keys of
-# a hash.
+Replaces c_c with cC and nosomething=whatever with something=0 in the keys of a
+hash.
+
+=cut
 sub parseOptions {
 	my %options = ();
 
@@ -67,9 +88,13 @@ sub parseOptions {
 	return wantarray ? %options : \%options;
 }
 
-# Adds to or sets an option in a hash, supports nested arrays and boolean
-# options. The logic here is one of those things that just works the way it is
-# and seems decipherable, but don't mess with it.
+=item B<setOption>
+
+Adds to or sets an option in a hash, supports nested arrays and boolean
+options. The logic here is one of those things that just works the way it is
+and seems decipherable, but don't mess with it.
+
+=cut
 sub setOption (\%$;$) {
 	my ($options, $option, $value) = @_;
 
@@ -94,8 +119,12 @@ sub setOption (\%$;$) {
 	}
 }
 
-# Parses @ARGV into a hash of options and values, leaving everything else that
-# is most likely a list of files on @ARGV.
+=item B<parseCmdLine>
+
+Parses @ARGV into a hash of options and values, leaving everything else that
+is most likely a list of files on @ARGV.
+
+=cut
 sub parseCmdLine () {
 	my (%options, @files);
 
@@ -121,6 +150,11 @@ sub parseCmdLine () {
 	return \%options;
 }
 
+=item B<sqlType2JavaType( type_name [, precision for numeric types] )>
+
+Maps some ANSI SQL data types to the closest Java variable types.
+
+=cut
 sub sqlType2JavaType ($;$) {
 	($_, my $precision) = @_;
 
@@ -141,8 +175,12 @@ sub sqlType2JavaType ($;$) {
 	croak "Cannot map SQL type $_ to Java type.";
 }
 
-# Remove any dir/../ or /./ or extraneous / from a path, as well as prepending
-# the current directory if necessary.
+=item B<simplifyPath( path )>
+
+Remove any dir/../ or /./ or extraneous / from a path, as well as prepending
+the current directory if necessary.
+
+=cut
 sub simplifyPath ($) {
 	use URI::file;
 	my $path = shift;
@@ -150,7 +188,11 @@ sub simplifyPath ($) {
 	return URI::file->new_abs($path)->file;
 }
 
-# Find package in $ENV{CLASSPATH}.
+=item B<findPackageDir( directory )>
+
+Find package in $ENV{CLASSPATH}.
+
+=cut
 sub findPackageDir ($) {
 	my $package	= shift;
 	my $classpath	= $ENV{CLASSPATH};
@@ -166,7 +208,11 @@ sub findPackageDir ($) {
 	return "";
 }
 
-# Determine the package of the current or passed-in directory.
+=item B<determinePackage([ optional directory ])>
+
+Determine the package of the current or passed-in directory.
+
+=cut
 sub determinePackage (;$) {
 	my $dir = shift || ".";
 	my @cwd = split m|/|, substr ( simplifyPath $dir, 1 );
@@ -183,22 +229,43 @@ sub determinePackage (;$) {
 	return join ('.', @cwd);	# If all else fails.
 }
 
-# Determines whether a string is a number or not.
-sub isNum ($) {
-	local $^W = undef if $^W;
-	$_	  = shift;
+=item B<isNum( string )>
 
-	if (not defined $_) {
-		return FALSE;
-	} elsif ($_ != 0 or /^0*(?:\.0*)$/) {
-		return TRUE;
-	} else {
-		return FALSE;
+Determines whether a string is a number or not. Uses the more powerful
+DBI::looks_like_number heuristic if available.
+
+=cut
+my $isNum_body;
+eval { require DBI };
+if (not $@ && DBI->can('looks_like_number')) {
+	$isNum_body = sub {
+		if (DBI::looks_like_number( shift )) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
+	};
+} else {
+	$isNum_body = sub {
+		local $^W = undef if $^W;
+		$_	  = shift;
+
+		if (not defined $_) {
+			return FALSE;
+		} elsif ($_ != 0 or /^0*(?:\.0*)$/) {
+			return TRUE;
+		} else {
+			return FALSE;
+		}
 	}
 }
+sub isNum ($) { &$isNum_body(shift) }
 
-# Casts a java String to another type using the appropriate code.
-# Parameters: name of variable to cast, type to cast to.
+=item B<castJavaString( variable_name, target_type )>
+
+Casts a java String to another type using the appropriate code.
+
+=cut
 sub castJavaString {
 	my ($name, $type) = @_;
 
@@ -218,3 +285,52 @@ sub castJavaString {
 }
 
 1;
+
+__END__
+
+=back
+
+=head1 ENVIRONMENT
+
+These are the environment variables used.
+
+=over 8
+
+=item B<TEMPLATEPATH>
+
+Colon separated path to where templates can be found, used by default in the
+B<createTemplate> subroutine.
+
+=item B<CLASSPATH>
+
+Searched in B<findPackageDir> to find a directory relative to it.
+
+=back
+
+=head1 AUTHOR
+
+Rafael Kitover (caelum@debian.org)
+
+=head1 COPYRIGHT
+
+This program is Copyright (c) 2000 by Rafael Kitover. This program is free
+software; you can redistribute it and/or modify it under the same terms as Perl
+itself.
+
+=head1 BUGS
+
+None known.
+
+=head1 TODO
+
+Nothing here.
+
+=head1 SEE ALSO
+
+L<perl(1)>,
+L<Template(3)>,
+L<Template::Plugin::Java(3)>,
+L<Template::Plugin::JavaSQL(3)>
+L<Template::Plugin::Java::Constants(3)>,
+
+=cut

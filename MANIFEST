@@ -2,7 +2,6 @@ Changes
 MANIFEST
 Makefile.PL
 test.pl
-java.prj
 lib/Template/Plugin/Java.pm
 lib/Template/Plugin/JavaSQL.pm
 lib/Template/Plugin/Java/Utils.pm

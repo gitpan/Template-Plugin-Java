@@ -13,3 +13,7 @@ Revision history for Perl extension Template::Plugin::Java.
 	  () constructor. This is a general problem that must be solved later
 	  on using class file introspection.
 	- Very minor documentation update.
+
+0.3   Sat Aug  5 14:41:41 PDT 2000
+	- DBClass.template now works for selects, stores and removes.
+	- Small JavaSQL.pm and Java/Utils.pm update.

@@ -1,6 +1,6 @@
 package Template::Plugin::Java;
 
-($VERSION) = '$ProjectVersion: 0.2 $' =~ /\$ProjectVersion:\s+(\S+)/;
+($VERSION) = '$ProjectVersion: 0.3 $' =~ /\$ProjectVersion:\s+(\S+)/;
 
 =head1 NAME
 
@@ -128,7 +128,7 @@ It can be used either directly on the command line, or loaded from a Template
 with a C<[% USE Java %]> statement, or in many other ways. It tries to be
 intelligent and figure out what context you are using it in.
 
-I'll write more next release, for now see the examples in the distribution.
+I'll write more eventually, for now see the examples in the distribution.
 
 =head1 METHODS
 
@@ -294,6 +294,13 @@ Returns an initializer string for a type.
 sub initializer {
 	my ($self, $type) = @_;
 	$type ||= $self->context->stash->get('type');
+
+# Can check if user defined, for example StringInitializer="null" in xml file
+# or template, and use that. But only if not called as a static method.
+	if (ref $self) {
+		my $res = $self->context->stash->get($type.'Initializer');
+		return $res if defined $res && $res ne "";
+	}
 
 	return '""'	if $self->string($type);
 
